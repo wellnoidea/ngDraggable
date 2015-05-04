@@ -17,7 +17,7 @@ angular.module("ngDraggable", [])
                 restrict: 'A',
                 link: function (scope, element, attrs) {
                     scope.value = attrs.ngDrag;
-                    var offset,_centerAnchor=false,_mx,_my,_tx,_ty,_mrx,_mry;
+                    var offset,_centerAnchor=false,_absolutePosition=false,_mx,_my,_tx,_ty,_mrx,_mry,initX,initY;
                     var _hasTouch = ('ontouchstart' in window) || window.DocumentTouch && document instanceof DocumentTouch;
                     var _pressEvents = 'touchstart mousedown';
                     var _moveEvents = 'touchmove mousemove';
@@ -59,6 +59,7 @@ angular.module("ngDraggable", [])
                         scope.$on('$destroy', onDestroy);
                         scope.$watch(attrs.ngDrag, onEnableChange);
                         scope.$watch(attrs.ngCenterAnchor, onCenterAnchor);
+	                    scope.$watch(attrs.ngAbsolutePosition, onAbsolutePosition);
                         // wire up touch events
                         if (_dragHandle) {
                             // handle(s) specified, use those to initiate drag
@@ -81,6 +82,10 @@ angular.module("ngDraggable", [])
                         if(angular.isDefined(newVal))
                         _centerAnchor = (newVal || 'true');
                     };
+	                var onAbsolutePosition = function (newVal, oldVal) {
+		                if(angular.isDefined(newVal))
+			                _absolutePosition = (newVal || 'true');
+	                };
 
                     var isClickableElement = function (evt) {
                         return (
@@ -128,14 +133,13 @@ angular.module("ngDraggable", [])
                         evt.preventDefault();
 
                         offset = element[0].getBoundingClientRect();
-                        if(allowTransform)
-                        _dragOffset = offset;
-                        else{
+                        if(allowTransform) {
+	                        _dragOffset = offset;
+                        } else {
                             _dragOffset = {left:document.body.scrollLeft, top:document.body.scrollTop};
                         }
 
-
-                        element.centerX = element[0].offsetWidth / 2;
+	                    element.centerX = element[0].offsetWidth / 2;
                         element.centerY = element[0].offsetHeight / 2;
 
                         _mx = ngDraggable.inputEvent(evt).pageX;//ngDraggable.getEventProp(evt, 'pageX');
@@ -145,9 +149,13 @@ angular.module("ngDraggable", [])
                          if (_centerAnchor) {
                              _tx = _mx - element.centerX - $window.pageXOffset;
                              _ty = _my - element.centerY - $window.pageYOffset;
-                        } else {
+                        } else if (_absolutePosition) {
+	                         initX = evt.clientX;
+	                         initY = evt.clientY;
+                         } else {
                              _tx = _mx - _mrx - $window.pageXOffset;
                              _ty = _my - _mry - $window.pageYOffset;
+	                         initX = initY = 0;
                         }
 
                         $document.on(_moveEvents, onmove);
@@ -176,10 +184,13 @@ angular.module("ngDraggable", [])
 
                         if (_centerAnchor) {
                             _tx = _mx - element.centerX - _dragOffset.left;
-                            _ty = _my - element.centerY - _dragOffset.top;
+                            _ty = _my - element.centerX - _dragOffset.top;
+                        } else if (_absolutePosition) {
+                            _tx = _mx - _mrx - _dragOffset.left + initX - element.centerX;
+                            _ty = _my - _mry - _dragOffset.top  + initY - element.centerX;
                         } else {
-                            _tx = _mx - _mrx - _dragOffset.left;
-                            _ty = _my - _mry - _dragOffset.top;
+	                        _tx = _mx - _mrx - _dragOffset.left;
+	                        _ty = _my - _mry - _dragOffset.top;
                         }
 
                         moveElement(_tx, _ty);
